@@ -396,7 +396,7 @@ export class MetroBundlerDevServer extends BundlerDevServer {
     const { routerRoot } = this.instanceMetroOptions;
     assert(
       routerRoot != null,
-      'The server must be started before calling exportExpoRouterApiRoutesAsync.'
+      'The server must be started before calling getStaticRenderFunctionAsync.'
     );
 
     const appDir = path.join(this.projectRoot, routerRoot);
@@ -1620,7 +1620,7 @@ export class MetroBundlerDevServer extends BundlerDevServer {
     let loaderData: Record<string, any> | undefined;
 
     try {
-      debug('Matched route loader to file: ', route.file);
+      debug(`Matched ${location.pathname} to file: ${route.file}`);
 
       const appDir = path.join(this.projectRoot, routerRoot);
       let modulePath = route.file;
