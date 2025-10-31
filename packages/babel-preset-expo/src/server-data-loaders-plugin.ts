@@ -4,7 +4,7 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-import type { ConfigAPI, types as t, PluginObj } from '@babel/core';
+import type { ConfigAPI, types as t, PluginObj, NodePath, PluginPass } from '@babel/core';
 
 import { getExpoRouterAbsoluteAppRoot, getIsServer, toPosixPath } from './common';
 
@@ -22,8 +22,6 @@ export function serverDataLoadersPlugin(api: ConfigAPI & typeof import('@babel/c
     name: 'expo-server-data-loaders',
     visitor: {
       ExportNamedDeclaration(path, state) {
-        assertExpoMetadata(state.file.metadata);
-
         if (isServer) {
           return;
         }
@@ -34,27 +32,23 @@ export function serverDataLoadersPlugin(api: ConfigAPI & typeof import('@babel/c
           return;
         }
 
-        // Early exit if file doesn't contain a `loader` named export
-        if (!state.file.code.includes(LOADER_EXPORT_NAME)) {
-          debug('Skipping file:', state.file.opts.filename);
-          state.file.path.stop();
-          return;
-        }
-
         debug(
           isServer ? 'Processing server bundle:' : 'Processing client bundle:',
           state.file.opts.filename
         );
 
-        const { declaration } = path.node;
+        const { declaration, specifiers } = path.node;
+
+        if (path.node.exportKind === 'type' || specifiers) {
+          return;
+        }
 
         // Handles `export function loader() {}`
         if (t.isFunctionDeclaration(declaration)) {
           const name = declaration.id?.name;
           if (name && isLoaderIdentifier(name)) {
             debug('Found and removed loader function declaration');
-            state.file.metadata.performConstantFolding = true;
-            path.remove();
+            markForConstantFolding(path, state);
           }
         }
 
@@ -73,8 +67,7 @@ export function serverDataLoadersPlugin(api: ConfigAPI & typeof import('@babel/c
 
           // If all declarations were removed, remove the export
           if (declaration.declarations.length === 0) {
-            state.file.metadata.performConstantFolding = true;
-            path.remove();
+            markForConstantFolding(path, state);
           }
         }
       },
@@ -105,4 +98,10 @@ function isInAppDirectory(filePath: string, routerRoot: string) {
   const normalizedFilePath = toPosixPath(filePath);
   const normalizedAppRoot = toPosixPath(routerRoot);
   return normalizedFilePath.startsWith(normalizedAppRoot + '/');
+}
+
+function markForConstantFolding(path: NodePath<t.ExportNamedDeclaration>, state: PluginPass) {
+  assertExpoMetadata(state.file.metadata);
+  state.file.metadata.performConstantFolding = true;
+  path.remove();
 }
