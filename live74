@@ -1,0 +1,61 @@
+import 'dart:io';
+}
+controller?.resumeCamera();
+}
+
+
+@override
+Widget build(BuildContext context) {
+return Scaffold(
+appBar: AppBar(title: const Text('Scan QR')),
+body: Stack(children: [
+QRView(
+key: qrKey,
+onQRViewCreated: _onQRViewCreated,
+overlay: QrScannerOverlayShape(
+borderColor: Colors.cyanAccent,
+borderRadius: 12,
+borderLength: 28,
+borderWidth: 8,
+cutOutSize: MediaQuery.of(context).size.width * 0.7,
+),
+),
+Positioned(
+bottom: 24,
+left: 0,
+right: 0,
+child: Center(
+child: Container(
+padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
+child: const Text('وجّه الكود داخل الإطار', style: TextStyle(color: Colors.white)),
+),
+),
+)
+]),
+);
+}
+
+
+void _onQRViewCreated(QRViewController c) {
+controller = c;
+c.scannedDataStream.listen((scanData) async {
+if (locked) return; // منع تكرار القراءة
+locked = true;
+final code = scanData.code ?? '';
+if (code.startsWith('http')) {
+final uri = Uri.parse(code);
+if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+if (!mounted) return;
+Navigator.pop(context, code); // أعد القيمة للشاشة السابقة
+});
+}
+
+
+@override
+void dispose() {
+controller?.dispose();
+super.dispose();
+}
+}
